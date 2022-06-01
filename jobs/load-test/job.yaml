@@ -1,0 +1,108 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rhobs-load-test
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: load-test
+        imagePullPolicy: Always
+        image: docker.io/philipgough/k6:latest
+        resources:
+          requests:
+            memory: "32Gi"
+            cpu: "1.5"
+          limits:
+            memory: "32Gi"
+            cpu: "1.5"
+        env:
+          - name: TENANT
+            valueFrom:
+              configMapKeyRef:
+                name: load-test-config
+                key: tenant
+          - name: SCHEME
+            valueFrom:
+              configMapKeyRef:
+                name: load-test-config
+                key: scheme
+          - name: READ_HOSTNAME
+            valueFrom:
+              configMapKeyRef:
+                name: load-test-config
+                key: read_hostname
+          - name: WRITE_HOSTNAME
+            valueFrom:
+              configMapKeyRef:
+                name: load-test-config
+                key: write_hostname
+          - name: READ_REQUEST_RATE
+            valueFrom:
+              configMapKeyRef:
+                name: load-test-config
+                key: read_request_rate
+          - name: WRITE_REQUEST_RATE
+            valueFrom:
+              configMapKeyRef:
+                name: load-test-config
+                key: write_request_rate
+          - name: WRITE_SERIES_PER_REQUEST
+            valueFrom:
+              configMapKeyRef:
+                name: load-test-config
+                key: write_series_per_request
+          - name: DURATION_MINUTES
+            valueFrom:
+              configMapKeyRef:
+                name: load-test-config
+                key: duration_minutes
+          - name: RAMP_UP_MINUTES
+            valueFrom:
+              configMapKeyRef:
+                name: load-test-config
+                key: ramp_up_minutes
+          - name: RAMP_DOWN_MINUTES
+            valueFrom:
+              configMapKeyRef:
+                name: load-test-config
+                key: ramp_down_minutes
+          - name: SCRAPE_INTERVAL_SECONDS
+            valueFrom:
+              configMapKeyRef:
+                name: load-test-config
+                key: scrape_interval_seconds
+          - name: K6_PROMETHEUS_USER
+            valueFrom:
+              secretKeyRef:
+                name: remote-write-secret
+                key: username
+                optional: true
+          - name: K6_PROMETHEUS_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: remote-write-secret
+                key: password
+                optional: true
+          - name: K6_PROMETHEUS_REMOTE_URL
+            valueFrom:
+              secretKeyRef:
+                name: remote-write-secret
+                key: url
+                optional: true
+          - name: K6_PROMETHEUS_FLUSH_PERIOD
+            value: '3s'
+        command:
+            - /bin/sh
+            - -c
+            - >
+                if [ -z ${K6_PROMETHEUS_REMOTE_URL} ];
+                then
+                   ./k6 run ./load.js -q
+                else
+                   ./k6 run ./load.js -o output-prometheus-remote -q
+                fi
+

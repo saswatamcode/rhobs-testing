@@ -111,80 +111,8 @@ const query_request_rates = {
  * @constant {object}
  */
 export const options = {
-    thresholds: {
-        // SLA: 99.9% of writes succeed.
-        'checks{type:write}': ['rate > 0.999'],
-        // 99.9% of writes take less than 10s (SLA has no guarantee on write latency).
-        [`http_req_duration{url:${remote_write_url}}`]: ['p(99.9) < 10000'],
-        // SLA: 99.9% of queries succeed.
-        'checks{type:read}': ['rate > 0.999'],
-        // SLA: average query time for any 3 hours of data is less than 2s (not including Internet latency).
-        'http_req_duration{type:read}': ['avg < 2000'],
-    },
-    scenarios: {
-        // In each SCRAPE_INTERVAL_SECONDS, WRITE_REQUEST_RATE number of remote-write requests will be made.
-        writing_metrics: {
-            executor: 'ramping-arrival-rate',
-            timeUnit: `${SCRAPE_INTERVAL_SECONDS}s`,
-
-            // The number of VUs should be adjusted based on how much load we're pushing on the write path.
-            // We estimated about 1 VU every 8.5k series.
-            preAllocatedVUs: Math.ceil(TOTAL_SERIES / 8500),
-            maxVus: Math.ceil(TOTAL_SERIES / 4250),
-            exec: 'write',
-
-            stages: [
-                {
-                    // Ramp up over a period of RAMP_UP_MIN to the target rate.
-                    target: (WRITE_REQUEST_RATE * HA_REPLICAS), duration: `${RAMP_UP_MIN}m`,
-                }, {
-                    target: (WRITE_REQUEST_RATE * HA_REPLICAS), duration: `${DURATION_MIN - RAMP_UP_MIN - RAMP_DOWN_MIN}m`,
-                }, {
-                    // Ramp back down over a period of RAMP_DOWN_MIN to a rate of 0.
-                    target: 0, duration: `${RAMP_DOWN_MIN}m`,
-                },
-            ]
-        },
-        reads_range_queries: {
-            executor: 'constant-arrival-rate',
-            rate: query_request_rates.range_queries,
-            timeUnit: '1s',
-
-            duration: `${DURATION_MIN}m`,
-            exec: 'run_range_query',
-
-            // The number of VUs should be adjusted based on how much load we're pushing on the read path.
-            // We estimated about 10 VU every query/sec.
-            preAllocatedVUs: query_request_rates.range_queries*10,
-            maxVus: query_request_rates.range_queries*30
-        },
-        reads_instant_queries_low_cardinality: {
-            executor: 'constant-arrival-rate',
-            rate: query_request_rates.instant_low_cardinality_queries,
-            timeUnit: '1s',
-
-            duration: `${DURATION_MIN}m`,
-            exec: 'run_instant_query_low_cardinality',
-
-            // The number of VUs should be adjusted based on how much load we're pushing on the read path.
-            // We estimated about 5 VU every query/sec.
-            preAllocatedVUs: query_request_rates.instant_low_cardinality_queries*5,
-            maxVus: query_request_rates.instant_low_cardinality_queries*20,
-        },
-        reads_instant_queries_high_cardinality: {
-            executor: 'constant-arrival-rate',
-            rate: query_request_rates.instant_high_cardinality_queries,
-            timeUnit: '1s',
-
-            duration: `${DURATION_MIN}m`,
-            exec: 'run_instant_query_high_cardinality',
-
-            // The number of VUs should be adjusted based on how much load we're pushing on the read path.
-            // We estimated about 10 VU every query/sec.
-            preAllocatedVUs: query_request_rates.instant_high_cardinality_queries*10,
-            maxVus: query_request_rates.instant_high_cardinality_queries*30,
-        },
-    },
+    thresholds: buildThresholds(READ_REQUEST_RATE > 0),
+    scenarios: buildScenarios(READ_REQUEST_RATE > 0)
 };
 
 /**
@@ -548,4 +476,131 @@ export function run_instant_query(name, config) {
         expect(res).to.have.validJsonBody();
         expect(res.json('status'), "status field").to.equal("success");
     });
+}
+/**
+ * Returns thresholds that include the query path if required
+ * @param {boolean} includeRead Include slo for reading scenarios.
+ * @returns {object}
+ */
+function buildThresholds(includeRead) {
+    if (!includeRead) {
+        return {
+            // SLA: 90.0% of writes succeed.
+            'checks{type:write}': ['rate > 0.9'],
+            // 99.9% of writes take less than 10s (SLA has no guarantee on write latency).
+            [`http_req_duration{url:${remote_write_url}}`]: ['p(99.9) < 10000'],
+        }
+    }
+    return  {
+        // SLA: 99.9% of writes succeed.
+        'checks{type:write}': ['rate > 0.999'],
+        // 99.9% of writes take less than 10s (SLA has no guarantee on write latency).
+        [`http_req_duration{url:${remote_write_url}}`]: ['p(99.9) < 10000'],
+        // SLA: 99.9% of queries succeed.
+        'checks{type:read}': ['rate > 0.999'],
+        // SLA: average query time for any 3 hours of data is less than 2s (not including Internet latency).
+        'http_req_duration{type:read}': ['avg < 2000'],
+    }
+}
+
+
+/**
+ * Returns scenarios that include the query path if required
+ * @param {boolean} includeRead Include metric reading scenarios.
+ * @returns {object}
+ */
+function buildScenarios(includeRead) {
+    if (!includeRead) {
+        return  {
+            // In each SCRAPE_INTERVAL_SECONDS, WRITE_REQUEST_RATE number of remote-write requests will be made.
+            writing_metrics: {
+                executor: 'ramping-arrival-rate',
+                timeUnit: `${SCRAPE_INTERVAL_SECONDS}s`,
+
+                // The number of VUs should be adjusted based on how much load we're pushing on the write path.
+                // We estimated about 1 VU every 8.5k series.
+                preAllocatedVUs: Math.ceil(TOTAL_SERIES / 8500),
+                maxVus: Math.ceil(TOTAL_SERIES / 4250),
+                exec: 'write',
+
+                stages: [
+                    {
+                        // Ramp up over a period of RAMP_UP_MIN to the target rate.
+                        target: (WRITE_REQUEST_RATE * HA_REPLICAS), duration: `${RAMP_UP_MIN}m`,
+                    }, {
+                        target: (WRITE_REQUEST_RATE * HA_REPLICAS),
+                        duration: `${DURATION_MIN - RAMP_UP_MIN - RAMP_DOWN_MIN}m`,
+                    }, {
+                        // Ramp back down over a period of RAMP_DOWN_MIN to a rate of 0.
+                        target: 0, duration: `${RAMP_DOWN_MIN}m`,
+                    },
+                ]
+            },
+        };
+    }
+    return  {
+        // In each SCRAPE_INTERVAL_SECONDS, WRITE_REQUEST_RATE number of remote-write requests will be made.
+        writing_metrics: {
+            executor: 'ramping-arrival-rate',
+            timeUnit: `${SCRAPE_INTERVAL_SECONDS}s`,
+
+            // The number of VUs should be adjusted based on how much load we're pushing on the write path.
+            // We estimated about 1 VU every 8.5k series.
+            preAllocatedVUs: Math.ceil(TOTAL_SERIES / 8500),
+            maxVus: Math.ceil(TOTAL_SERIES / 4250),
+            exec: 'write',
+
+            stages: [
+                {
+                    // Ramp up over a period of RAMP_UP_MIN to the target rate.
+                    target: (WRITE_REQUEST_RATE * HA_REPLICAS), duration: `${RAMP_UP_MIN}m`,
+                }, {
+                    target: (WRITE_REQUEST_RATE * HA_REPLICAS),
+                    duration: `${DURATION_MIN - RAMP_UP_MIN - RAMP_DOWN_MIN}m`,
+                }, {
+                    // Ramp back down over a period of RAMP_DOWN_MIN to a rate of 0.
+                    target: 0, duration: `${RAMP_DOWN_MIN}m`,
+                },
+            ]
+        },
+        reads_range_queries: {
+            executor: 'constant-arrival-rate',
+                rate: query_request_rates.range_queries,
+                timeUnit: '1s',
+
+                duration: `${DURATION_MIN}m`,
+                exec: 'run_range_query',
+
+                // The number of VUs should be adjusted based on how much load we're pushing on the read path.
+                // We estimated about 10 VU every query/sec.
+                preAllocatedVUs: query_request_rates.range_queries * 10,
+                maxVus: query_request_rates.range_queries * 30
+        },
+        reads_instant_queries_low_cardinality: {
+            executor: 'constant-arrival-rate',
+                rate: query_request_rates.instant_low_cardinality_queries,
+                timeUnit: '1s',
+
+                duration: `${DURATION_MIN}m`,
+                exec: 'run_instant_query_low_cardinality',
+
+                // The number of VUs should be adjusted based on how much load we're pushing on the read path.
+                // We estimated about 5 VU every query/sec.
+                preAllocatedVUs: query_request_rates.instant_low_cardinality_queries * 5,
+                maxVus: query_request_rates.instant_low_cardinality_queries * 20,
+        },
+        reads_instant_queries_high_cardinality: {
+            executor: 'constant-arrival-rate',
+                rate: query_request_rates.instant_high_cardinality_queries,
+                timeUnit: '1s',
+
+                duration: `${DURATION_MIN}m`,
+                exec: 'run_instant_query_high_cardinality',
+
+                // The number of VUs should be adjusted based on how much load we're pushing on the read path.
+                // We estimated about 10 VU every query/sec.
+                preAllocatedVUs: query_request_rates.instant_high_cardinality_queries * 10,
+                maxVus: query_request_rates.instant_high_cardinality_queries * 30,
+        }
+    };
 }

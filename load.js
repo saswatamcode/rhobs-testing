@@ -80,7 +80,7 @@ const HA_REPLICAS = parseInt(__ENV.K6_HA_REPLICAS || 1);
  * Number of HA clusters to simulate.
  * @constant {number}
  */
-const HA_CLUSTERS = parseInt(__ENV.K6_HA_CLUSTERS || 100);
+const HA_CLUSTERS = parseInt(__ENV.HA_CLUSTERS || 10);
 
 const remote_write_url = get_remote_write_url();
 console.debug("Remote write URL:", remote_write_url)
@@ -88,7 +88,7 @@ console.debug("Remote write URL:", remote_write_url)
 
 const write_client = new remote.Client({
     url: remote_write_url,
-    timeout: '32s'
+    timeout: '70s'
 });
 
 const query_client = new Httpx({
@@ -520,7 +520,7 @@ function buildScenarios(includeRead) {
                 // The number of VUs should be adjusted based on how much load we're pushing on the write path.
                 // We estimated about 1 VU every 8.5k series.
                 preAllocatedVUs: Math.ceil(TOTAL_SERIES / 8500),
-                maxVus: Math.ceil(TOTAL_SERIES / 4250),
+                maxVus: Math.ceil(TOTAL_SERIES / 8500),
                 exec: 'write',
 
                 stages: [
@@ -547,7 +547,7 @@ function buildScenarios(includeRead) {
             // The number of VUs should be adjusted based on how much load we're pushing on the write path.
             // We estimated about 1 VU every 8.5k series.
             preAllocatedVUs: Math.ceil(TOTAL_SERIES / 8500),
-            maxVus: Math.ceil(TOTAL_SERIES / 4250),
+            maxVus: Math.ceil(TOTAL_SERIES / 3500),
             exec: 'write',
 
             stages: [

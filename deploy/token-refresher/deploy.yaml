@@ -31,6 +31,7 @@ spec:
         - --oidc.client-id=$(OIDC_CLIENT_ID)
         - --oidc.client-secret=$(OIDC_CLIENT_SECRET)
         - --oidc.issuer-url=$(OIDC_ISSUER_URL)
+        - --proxy.timeout=2m
         - --url=$(OBSERVATORIUM_API_URL)
         env:
         - name: OIDC_AUDIENCE
@@ -58,7 +59,7 @@ spec:
             secretKeyRef:
               key: apiURL
               name: token-refresher-oidc
-        image: quay.io/observatorium/token-refresher:master-2022-03-20-731cadd
+        image: docker.io/philipgough/token-refresher:master-2022-05-26-731cadd-dirty
         name: token-refresher
         ports:
         - containerPort: 8081

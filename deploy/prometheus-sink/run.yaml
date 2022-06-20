@@ -26,6 +26,7 @@ spec:
   serviceAccountName: prometheus
   enableFeatures: ['remote-write-receiver']
   replicas: 1
+  enableAdminAPI: true
   resources:
     requests:
       memory: 400Mi

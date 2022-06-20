@@ -11,14 +11,7 @@ spec:
       containers:
       - name: load-test
         imagePullPolicy: Always
-        image: docker.io/philipgough/k6:latest
-        resources:
-          requests:
-            memory: "32Gi"
-            cpu: "1.5"
-          limits:
-            memory: "32Gi"
-            cpu: "1.5"
+        image: docker.io/philipgough/k6:29de9f4-dirty
         env:
           - name: TENANT
             valueFrom:
@@ -75,6 +68,23 @@ spec:
               configMapKeyRef:
                 name: load-test-config
                 key: scrape_interval_seconds
+          - name: HA_CLUSTERS
+            valueFrom:
+              configMapKeyRef:
+                name: load-test-config
+                key: ha_clusters
+          - name: HA_REPLICAS
+            valueFrom:
+              configMapKeyRef:
+                name: load-test-config
+                key: ha_clusters
+          - name: LABEL
+            value: 'run_id'
+          - name: LABEL_VALUE
+            valueFrom:
+              configMapKeyRef:
+                name: load-test-config
+                key: run-identifier
           - name: K6_PROMETHEUS_USER
             valueFrom:
               secretKeyRef:
@@ -101,8 +111,8 @@ spec:
             - >
                 if [ -z ${K6_PROMETHEUS_REMOTE_URL} ];
                 then
-                   ./k6 run ./load.js -q
+                   ./k6 run ./load.js -q --tag $(LABEL)=$(LABEL_VALUE)
                 else
-                   ./k6 run ./load.js -o output-prometheus-remote -q
+                   ./k6 run ./load.js -o output-prometheus-remote -q --tag $(LABEL)=$(LABEL_VALUE)
                 fi
 

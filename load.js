@@ -75,7 +75,7 @@ const SCRAPE_INTERVAL_SECONDS = parseInt(__ENV.SCRAPE_INTERVAL_SECONDS || 20);
  * Causes every series to be sent this number of times.
  * @constant {number}
  */
-const HA_REPLICAS = parseInt(__ENV.K6_HA_REPLICAS || 1);
+const HA_REPLICAS = parseInt(__ENV.HA_REPLICAS || 1);
 /**
  * Number of HA clusters to simulate.
  * @constant {number}

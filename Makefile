@@ -5,3 +5,4 @@ VERSION := $(strip $(shell [ -d .git ] && git describe --always --tags --dirty))
 .PHONY: image
 image:
 	docker build -t docker.io/philipgough/k6:$(VERSION) -f $(PROJECT_PATH)/Dockerfile .
+	docker tag docker.io/philipgough/k6:$(VERSION) docker.io/philipgough/k6:latest

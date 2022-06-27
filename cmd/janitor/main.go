@@ -25,6 +25,7 @@ type statefulSet struct {
 	Name        string `json:"name"`
 	Namespace   string `json:"namespace"`
 	WaitMinutes *int   `json:"waitMinutes,omitempty"`
+	ForceDelete bool   `json:"forceDelete"`
 }
 
 type awsConfig struct {
@@ -76,6 +77,37 @@ func cleanStatefulSetsState(ctx context.Context, k8Client *kubernetes.Clientset,
 			return err
 		}
 
+		if s.ForceDelete {
+			pods, err := k8Client.CoreV1().Pods(s.Namespace).List(
+				ctx, metav1.ListOptions{
+					Limit: 100,
+				})
+
+			if err == nil {
+			out:
+				for _, p := range pods.Items {
+					var found int32
+					for _, or := range p.OwnerReferences {
+						if or.Kind == "StatefulSet" && or.Name == s.Name {
+							found++
+							if err := k8Client.CoreV1().Pods(s.Namespace).Delete(
+								ctx,
+								p.Name,
+								metav1.DeleteOptions{
+									GracePeriodSeconds: aws.Int64(0),
+								},
+							); err != nil {
+								log.Println("error when force deleting pods from sts...continuing")
+							}
+						}
+					}
+					if found == current {
+						break out
+					}
+				}
+			}
+		}
+
 		for _, pvc := range ss.Spec.VolumeClaimTemplates {
 			for i := current - 1; i > -1; i-- {
 				if err := k8Client.CoreV1().PersistentVolumeClaims(s.Namespace).Delete(ctx, fmt.Sprintf("%s-%s-%d", pvc.Name, ss.Name, i), metav1.DeleteOptions{}); err != nil {
@@ -88,16 +120,19 @@ func cleanStatefulSetsState(ctx context.Context, k8Client *kubernetes.Clientset,
 
 		if s.WaitMinutes != nil && *s.WaitMinutes > 0 {
 			ctx, _ = context.WithDeadline(ctx, time.Now().Add(time.Duration(*s.WaitMinutes)*time.Minute))
-
-			select {
-			case <-time.After(30 * time.Second):
-				ss, _ := k8Client.AppsV1().StatefulSets(s.Namespace).Get(ctx, s.Name, metav1.GetOptions{})
-				if ss != nil && *ss.Spec.Replicas == 0 {
-					log.Printf("sts %s has zero replicas", s.Name)
-					break
+		done:
+			for {
+				select {
+				case <-time.After(5 * time.Second):
+					ss, _ := k8Client.AppsV1().StatefulSets(s.Namespace).Get(ctx, s.Name, metav1.GetOptions{})
+					if ss != nil && ss.Status.ReadyReplicas == 0 {
+						log.Printf("sts %s has zero replicas", s.Name)
+						break done
+					}
+					continue
+				case <-ctx.Done():
+					return fmt.Errorf("failed to scale sts before deadline")
 				}
-			case <-ctx.Done():
-				return fmt.Errorf("failed to scale sts before deadline")
 			}
 		}
 	}
@@ -138,6 +173,5 @@ func mustGetAWS3Client(cfg *awsConfig) *s3.S3 {
 }
 
 func mustGetK8sClient() *kubernetes.Clientset {
-	config := ctrl.GetConfigOrDie()
-	return kubernetes.NewForConfigOrDie(config)
+	return kubernetes.NewForConfigOrDie(ctrl.GetConfigOrDie())
 }

@@ -7,19 +7,19 @@ data:
   scheme: http
   read_hostname: token-refresher.rhobs-testing.svc.cluster.local:8080
   write_hostname: token-refresher.rhobs-testing.svc.cluster.local:8080
-  read_request_rate: '0'
+  read_request_rate: '1'
   # The number of remote write requests to perform per scrape interval.
   # This is multiplied by ha_clusters
   # rps is therefore calculated as (write_request_rate / scrape_interval) * ha_clusters
-  write_request_rate: '1000'
+  write_request_rate: '10000'
   scrape_interval_seconds: '30'
   # Number of series per remote write request.
-  write_series_per_request: '10000' # Active series can be calculated by (write_series_per_request * write_request_rate)
+  write_series_per_request: '2000' # Active series can be calculated by (write_series_per_request * write_request_rate)
   ha_clusters: '1'
   ha_replicas: '1' # Each time series will be sent this number of times
-  duration_minutes: '125'
-  ramp_up_minutes: '5'
+  duration_minutes: '180'
+  ramp_up_minutes: '60'
   ramp_down_minutes: '0'
-  run-identifier: 'ten-million-active-series-1m'
+  run-identifier: '20-million-active-series-30s-1-write-queue-enabled'
 
 

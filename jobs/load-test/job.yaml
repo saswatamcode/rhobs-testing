@@ -11,7 +11,7 @@ spec:
       containers:
       - name: load-test
         imagePullPolicy: Always
-        image: docker.io/philipgough/k6:29de9f4-dirty
+        image: docker.io/philipgough/k6:latest
         env:
           - name: TENANT
             valueFrom:
@@ -104,7 +104,7 @@ spec:
                 key: url
                 optional: true
           - name: K6_PROMETHEUS_FLUSH_PERIOD
-            value: '3s'
+            value: '30s'
         command:
             - /bin/sh
             - -c

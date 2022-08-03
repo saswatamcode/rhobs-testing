@@ -425,6 +425,7 @@ export function run_range_query() {
             tags: {
                 name: name,
                 type: "read",
+                subType: "range_query"
             },
         });
 
@@ -469,6 +470,7 @@ export function run_instant_query(name, config) {
             tags: {
                 name: name,
                 type: "read",
+                subType: "instant_query",
             }
         });
 
@@ -485,21 +487,21 @@ export function run_instant_query(name, config) {
 function buildThresholds(includeRead) {
     if (!includeRead) {
         return {
-            // SLA: 90.0% of writes succeed.
-            'checks{type:write}': ['rate > 0.9'],
-            // 99.9% of writes take less than 10s (SLA has no guarantee on write latency).
-            [`http_req_duration{url:${remote_write_url}}`]: ['p(99.9) < 10000'],
+            // SLA: 95% of writes succeed.
+            'checks{type:write}': ['rate > 0.95'],
+            // 90% of writes take less than 5s (SLA has no guarantee on write latency).
+            [`http_req_duration{url:${remote_write_url}}`]: ['p(90.0) < 5000'],
         }
     }
     return  {
-        // SLA: 99.9% of writes succeed.
-        'checks{type:write}': ['rate > 0.999'],
-        // 99.9% of writes take less than 10s (SLA has no guarantee on write latency).
-        [`http_req_duration{url:${remote_write_url}}`]: ['p(99.9) < 10000'],
-        // SLA: 99.9% of queries succeed.
-        'checks{type:read}': ['rate > 0.999'],
-        // SLA: average query time for any 3 hours of data is less than 2s (not including Internet latency).
-        'http_req_duration{type:read}': ['avg < 2000'],
+        // SLA: 95% of writes succeed.
+        'checks{type:write}': ['rate > 0.95'],
+        // 90% of writes take less than 5s (SLA has no guarantee on write latency).
+        [`http_req_duration{url:${remote_write_url}}`]: ['p(90.0) < 5000'],
+        // 95% of valid /query requests return successfully
+        'http_req_failed{type:read, subType:instant_query}': ['rate <= 0.5'],
+        // 95% of valid /query_range requests return successfully
+        'http_req_failed{type:read, subType:range_query}': ['rate <= 0.5'],
     }
 }
 

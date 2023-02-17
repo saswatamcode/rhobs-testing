@@ -12,6 +12,20 @@ import { Httpx } from 'https://jslib.k6.io/httpx/0.0.6/index.js';
  */
 const TENANT = __ENV.TENANT
 
+/**
+ * A comma separated list of headers to add to remote write requests.
+ * Eg "X-Scope-OrgID:1,X-Scope-ProjectID:2"
+ * @constant {string}
+ */
+const HEADERS = __ENV.HEADERS || '';
+
+
+/**
+ * URL to write to.
+ * Overrides the hostname if set.
+ * @constant {string}
+ */
+const REMOTE_WRITE_URL = __ENV.REMOTE_WRITE_URL || '';
 
 /**
  * Hostname to connect to on the write path.
@@ -88,7 +102,23 @@ console.debug("Remote write URL:", remote_write_url)
 
 const write_client = new remote.Client({
     url: remote_write_url,
-    timeout: '70s'
+    timeout: '70s',
+    headers: function () {
+         if (HEADERS === '') {
+           return {}
+         }
+
+         let headers = {};
+
+         HEADERS.split(',').forEach(function (header) {
+             let parts = header.split(':');
+             if (parts.length === 2) {
+                 headers[parts[0]] = parts[1];
+             }
+         });
+
+         return headers;
+     }
 });
 
 const query_client = new Httpx({
@@ -395,8 +425,13 @@ function align_timestamp_to_step(ts, step) {
  * @returns {string}
  */
 function get_remote_write_url() {
+    if (REMOTE_WRITE_URL !== '') {
+        return REMOTE_WRITE_URL;
+    }
     return `${SCHEME}://${WRITE_HOSTNAME}/api/metrics/v1/${TENANT}/api/v1/receive`;
 }
+
+
 
 /**
  * Runs a range query randomly generated based on the configured distribution defined in range_query_distribution.

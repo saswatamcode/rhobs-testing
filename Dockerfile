@@ -3,8 +3,7 @@ FROM golang:1.19-alpine as builder
 WORKDIR "$GOPATH"/src/go.k6.io/k6
 
 RUN go install go.k6.io/xk6/cmd/xk6@latest && \
-    xk6 build --with github.com/grafana/xk6-client-prometheus-remote@main \
-    --with github.com/grafana/xk6-output-prometheus-remote@latest && \
+    xk6 build --with github.com/grafana/xk6-client-prometheus-remote@main && \
     cp k6 "$GOPATH"/bin/k6
 
 FROM alpine:3.13

@@ -11,7 +11,7 @@ spec:
       containers:
       - name: load-test
         imagePullPolicy: Always
-        image: docker.io/philipgough/k6:latest
+        image: quay.io/philipgough/k6:latest
         env:
           - name: TENANT
             valueFrom:
@@ -97,7 +97,7 @@ spec:
                 name: remote-write-secret
                 key: password
                 optional: true
-          - name: K6_PROMETHEUS_REMOTE_URL
+          - name: K6_PROMETHEUS_RW_SERVER_URL
             valueFrom:
               secretKeyRef:
                 name: remote-write-secret
@@ -109,10 +109,10 @@ spec:
             - /bin/sh
             - -c
             - >
-                if [ -z ${K6_PROMETHEUS_REMOTE_URL} ];
+                if [ -z ${K6_PROMETHEUS_RW_SERVER_URL} ];
                 then
-                   ./k6 run ./load.js -q --tag $(LABEL)=$(LABEL_VALUE)
+                   ./k6 run ./scripts/load.js -q --tag $(LABEL)=$(LABEL_VALUE)
                 else
-                   ./k6 run ./load.js -o output-prometheus-remote -q --tag $(LABEL)=$(LABEL_VALUE)
+                   ./k6 run ./scripts/load.js -o experimental-prometheus-rw -q --tag $(LABEL)=$(LABEL_VALUE)
                 fi
 

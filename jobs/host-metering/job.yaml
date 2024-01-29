@@ -1,0 +1,85 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: host-metering-load-test-0
+  labels:
+    app.kubernetes.io/name: host-metered-load-test
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/name
+                      operator: In
+                      values:
+                        - host-metered-load-test
+                namespaces:
+                  - rhobs-testing
+                topologyKey: kubernetes.io/hostname
+              weight: 100
+      restartPolicy: Never
+      containers:
+        - name: host-metering-load-test
+          resources:
+            limits:
+              cpu: "2"
+              memory: 20Gi
+            requests:
+              cpu: "2"
+              memory: 20Gi
+          imagePullPolicy: Always
+          image: quay.io/philipgough/k6:latest
+          env:
+            - name: HOST_ID_MIN
+              value: '1'
+            - name: HOST_ID_MAX
+              value: '10000'
+            - name: REMOTE_WRITE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: host-metering-load-test-config
+                  key: remote-write-url
+            - name: DURATION_MINUTES
+              valueFrom:
+                configMapKeyRef:
+                  name: host-metering-load-test-config
+                  key: duration_minutes
+            - name: RAMP_UP_MINUTES
+              valueFrom:
+                configMapKeyRef:
+                  name: host-metering-load-test-config
+                  key: ramp_up_minutes
+            - name: RAMP_DOWN_MINUTES
+              valueFrom:
+                configMapKeyRef:
+                  name: host-metering-load-test-config
+                  key: ramp_down_minutes
+            - name: SCRAPE_INTERVAL_SECONDS
+              valueFrom:
+                configMapKeyRef:
+                  name: host-metering-load-test-config
+                  key: scrape_interval_seconds
+            - name: K6_PROMETHEUS_RW_SERVER_URL
+              valueFrom:
+                secretKeyRef:
+                  name: remote-write-secret
+                  key: url
+                  optional: true
+            - name: K6_PROMETHEUS_FLUSH_PERIOD
+              value: '2m'
+          command:
+            - /bin/sh
+            - -c
+            - >
+              if [ -z ${K6_PROMETHEUS_RW_SERVER_URL} ];
+              then
+                 ./k6 run ./host-metering.js -q
+              else
+                 ./k6 run ./host-metering.js -o experimental-prometheus-rw -q
+              fi

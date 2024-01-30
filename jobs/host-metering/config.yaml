@@ -1,0 +1,12 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: host-metering-load-test-config
+data:
+  remote-write-url: https://somewhere.com/metrics/v1/receive
+  scrape_interval_seconds: '300'
+  duration_minutes: '4320'
+  ramp_up_minutes: '1'
+  ramp_down_minutes: '0'
+
+

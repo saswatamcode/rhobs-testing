@@ -111,8 +111,8 @@ spec:
             - >
                 if [ -z ${K6_PROMETHEUS_RW_SERVER_URL} ];
                 then
-                   ./k6 run ./scripts/load.js -q --tag $(LABEL)=$(LABEL_VALUE)
+                   ./k6 run ./load.js -q --tag $(LABEL)=$(LABEL_VALUE)
                 else
-                   ./k6 run ./scripts/load.js -o experimental-prometheus-rw -q --tag $(LABEL)=$(LABEL_VALUE)
+                   ./k6 run ./load.js -o experimental-prometheus-rw -q --tag $(LABEL)=$(LABEL_VALUE)
                 fi
 

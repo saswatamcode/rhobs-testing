@@ -28,6 +28,14 @@ const HEADERS = __ENV.HEADERS || '';
 const REMOTE_WRITE_URL = __ENV.REMOTE_WRITE_URL || '';
 
 /**
+ * URL to query.
+ * Overrides the hostname if set.
+ * @constant {string}
+ */
+const QUERY_URL = __ENV.QUERY_URL || '';
+
+
+/**
  * Hostname to connect to on the write path.
  * @constant {string}
  */
@@ -97,7 +105,7 @@ const HA_REPLICAS = parseInt(__ENV.HA_REPLICAS || 1);
 const HA_CLUSTERS = parseInt(__ENV.HA_CLUSTERS || 10);
 
 const remote_write_url = get_remote_write_url();
-console.debug("Remote write URL:", remote_write_url)
+console.log("Remote write URL:", remote_write_url)
 
 
 const write_client = new remote.Client({
@@ -121,8 +129,11 @@ const write_client = new remote.Client({
      }
 });
 
+const query_url = get_query_url();
+console.log("Query URL:", query_url)
+
 const query_client = new Httpx({
-    baseURL: `${SCHEME}://${READ_HOSTNAME}/api/metrics/v1/${TENANT}/api/v1`,
+    baseURL: query_url,
     headers: {
         'User-Agent': 'k6-load-test',
         "Content-Type": 'application/x-www-form-urlencoded'
@@ -431,6 +442,16 @@ function get_remote_write_url() {
     return `${SCHEME}://${WRITE_HOSTNAME}/api/metrics/v1/${TENANT}/api/v1/receive`;
 }
 
+/**
+ * Returns the query URL.
+ * @returns {string}
+ */
+function get_query_url() {
+    if (QUERY_URL !== '') {
+        return QUERY_URL;
+    }
+    return `${SCHEME}://${READ_HOSTNAME}/api/metrics/v1/${TENANT}/api/v1`;
+}
 
 
 /**
